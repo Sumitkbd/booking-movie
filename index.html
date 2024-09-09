@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Seat Booking</title>
+	</head>
+	<body>
+		<h1>Seat Booking System</h1>
+		<input type="text" id="name" placeholder="Enter your name" />
+		<input type="number" id="seatNumber" placeholder="Enter seat number" />
+		<button onclick="bookSeat()">Book Seat</button>
+		<button onclick="findSlot()">Find Slot</button>
+		<button onclick="showTotalBookings()">Show Total Bookings</button>
+		<div id="bookings"></div>
+		<div id="slotInfo"></div>
+		<div id="totalBookings"></div>
+		<div id="bookingStatus"></div>
+
+		<script>
+			async function bookSeat() {
+				const name = document.getElementById("name").value;
+				const seatNumber = document.getElementById("seatNumber").value;
+
+				try {
+					const response = await fetch("http://localhost:3000/book-seat", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ name, seatNumber }),
+					});
+
+					if (response.ok) {
+						document.getElementById("bookingStatus").innerText =
+							"Booking successful";
+						loadBookings();
+					} else {
+						const result = await response.json();
+						document.getElementById("bookingStatus").innerText = result.message;
+					}
+				} catch (error) {
+					console.error("Error:", error);
+					document.getElementById("bookingStatus").innerText =
+						"An error occurred";
+				}
+			}
+
+			async function loadBookings() {
+				const response = await fetch("http://localhost:3000/bookings");
+				const bookings = await response.json();
+				document.getElementById("bookings").innerHTML = bookings
+					.map(
+						(b) => `
+        <p>
+            ${b.name} booked seat ${b.seatNumber}
+            <button onclick="editBooking('${b.seatNumber}')">Edit</button>
+            <button onclick="deleteBooking('${b.seatNumber}')">Delete</button>
+        </p>`,
+					)
+					.join("");
+			}
+
+			async function deleteBooking(seatNumber) {
+				await fetch(`http://localhost:3000/bookings/${seatNumber}`, {
+					method: "DELETE",
+				});
+				loadBookings();
+			}
+
+			async function editBooking(seatNumber) {
+				const newName = prompt("Enter new name:");
+				if (newName) {
+					await fetch(`http://localhost:3000/bookings/${seatNumber}`, {
+						method: "PUT",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ name: newName }),
+					});
+					loadBookings();
+				}
+			}
+
+			async function findSlot() {
+				const seatNumber = document.getElementById("seatNumber").value;
+				const response = await fetch(
+					`http://localhost:3000/find-slot/${seatNumber}`,
+				);
+				const result = await response.json();
+				const slotInfo = result.booked
+					? `Seat ${seatNumber} is booked by ${result.name}`
+					: `Seat ${seatNumber} is available`;
+				document.getElementById("slotInfo").innerText = slotInfo;
+			}
+
+			async function showTotalBookings() {
+				const response = await fetch("http://localhost:3000/total-bookings");
+				const result = await response.json();
+				document.getElementById(
+					"totalBookings",
+				).innerText = `Total bookings: ${result.total}`;
+			}
+
+			window.onload = loadBookings;
+		</script>
+	</body>
+</html>
